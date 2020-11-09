@@ -6,13 +6,41 @@ const API_URL = 'https://course-vue.javascript.ru/api';
 /** ID митапа для примера; используйте его при получении митапа */
 const MEETUP_ID = 6;
 
-/**
- * Возвращает ссылку на изображение митапа для митапа
- * @param meetup - объект с описанием митапа (и параметром meetupId)
- * @return {string} - ссылка на изображение митапа
- */
-function getMeetupCoverLink(meetup) {
-  return `${API_URL}/images/${meetup.imageId}`;
+const ACCEPT_CONTENT_TYPE = {
+  json: 'json',
+  image: 'image',
+};
+
+const MEETUPS_API = {
+  MEETUP: (meetupId) => `${API_URL}/meetups/${meetupId}`,
+  IMAGE: (imageId) => `${API_URL}/images/${imageId}`,
+};
+
+async function fetchMeetup(id) {
+  return makeRequest(MEETUPS_API.MEETUP(id));
+}
+
+async function fetchImage(id) {
+  return makeRequest(MEETUPS_API.IMAGE(id), ACCEPT_CONTENT_TYPE.image);
+}
+
+async function makeRequest(url, acceptContentType) {
+  const response = await fetch(url);
+
+  if (response.ok) {
+    switch (acceptContentType) {
+      case ACCEPT_CONTENT_TYPE.image: {
+        const blob = await response.blob();
+
+        return URL.createObjectURL(blob);
+      }
+      default: {
+        return response.json();
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -48,19 +76,33 @@ export const app = new Vue({
   el: '#app',
 
   data: {
-    //
+    meetup: null,
+    imageUrl: null,
   },
+
+  agendaItemTitles,
+  agendaItemIcons,
 
   mounted() {
-    // Требуется получить данные митапа с API
-  },
-
-  computed: {
-    //
+    this.getMeetupAndImageUrl();
   },
 
   methods: {
-    // Получение данных с API предпочтительнее оформить отдельным методом,
-    // а не писать прямо в mounted()
+    async getMeetupAndImageUrl() {
+      const meetup = await fetchMeetup(MEETUP_ID);
+
+      if (meetup) {
+        this.meetup = {
+          ...meetup,
+          localDate: new Date(meetup.date).toLocaleString(navigator.language, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+        };
+
+        this.imageUrl = await fetchImage(this.meetup.imageId);
+      }
+    },
   },
 });
